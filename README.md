@@ -1,4 +1,4 @@
-BulkInsertUpdateExamples
+# BulkInsertUpdateExamples
 
 This project demonstrates an old school database technique for Inserts and Updates of large datasets to sql server, using stored procedures with left joins, user defined datatables, and System.Data.Datatable.
 
