@@ -15,6 +15,8 @@ using BulkInsertExampleEF;
 using BulkInsertUpdateExamples.Data;
 using BulkInsertUpdateExamples.Models;
 using System.Runtime.InteropServices;
+using BulkInsertUpdateExamples.Mappers;
+using System.Collections;
 
 namespace BulkInsertUpdateExamples
 {
@@ -25,7 +27,8 @@ namespace BulkInsertUpdateExamples
             ConfigureSerilog();            
 
             //BulkInsertProductRecords();
-            UpdateProducts();
+            //BulkUpdateProducts();
+            BulkInsertParentChildTables();
 
             Console.WriteLine("press any key..");
             Console.ReadKey();
@@ -81,7 +84,7 @@ namespace BulkInsertUpdateExamples
         /// 2025-05-16 10:44:53.346 -05:00 [INF] start updating 1000000 records - 5/16/2025 10:44:53 AM
         /// 2025-05-16 10:44:59.928 -05:00 [INF] end updating 1000000 records - 5/16/2025 10:44:59 AM
         /// </summary>
-        private static void UpdateProducts()
+        private static void BulkUpdateProducts()
         {
             var products = GetProducts();
             int numberOfRecords = products.Count();
@@ -120,6 +123,82 @@ namespace BulkInsertUpdateExamples
                 products = context.Products.ToList();
             }
             return products;
-        }        
+        }
+
+        //bulk insert Parent Child records with transaction scope//
+        /// <summary>
+        /// Twenty seconds to insert one million parent and one million child records.
+        /// 2025-05-16 11:51:10.928 -05:00 [INF] start Inserting 1000000 Parent records - 5/16/2025 11:51:10 AM
+        /// 2025-05-16 11:51:10.966 -05:00 [INF] Populate Child records with ParentId as a foreign key. - 5/16/2025 11:51:10 AM
+        /// 2025-05-16 11:51:24.392 -05:00 [INF] start Inserting Child records with ParentId as a foreign key. - 5/16/2025 11:51:24 AM
+        /// 2025-05-16 11:51:30.146 -05:00 [INF] end Inserting Child records with ParentId as a foreign key. - 5/16/2025 11:51:30 AM
+        /// </summary>
+        private static void BulkInsertParentChildTables()
+        {
+            int numberOfRecords = 1000000;
+            var parents = new List<Parent>();
+            for (int i = 0; i < numberOfRecords; i++)
+            {
+                var parent = new Parent() { Name = $"my name{i}" };
+                parents.Add(parent);
+            }
+
+            var mapper = new ParentToDataSetMapper();
+            DataTable dataTable = mapper.GetDataSetFroDtos(parents);
+
+            var parameter = new SqlParameter("@batch", SqlDbType.Structured);
+            parameter.Value = dataTable;
+            parameter.TypeName = "dbo.udt_parent";
+
+            using (var db = new SandboxDbContext())
+            {                
+                using (var transaction = db.Database.BeginTransaction()) 
+                {
+
+                    try
+                    {
+                        string msg = $"start Inserting {numberOfRecords} Parent records - {DateTime.Now.ToString()}";
+                        Log.Information(msg);
+
+                        IQueryable<Parent> inserted = db.Parents.FromSqlRaw<Parent>("exec dbo.usp_load_parent @batch", parameter);
+
+                        msg = $"Populate Child records with ParentId as a foreign key. - {DateTime.Now.ToString()}";
+                        Log.Information(msg);
+
+                        var children = new List<Child>();
+                        int index = 0;
+                        foreach (var parent in inserted)
+                        {                            
+                            var child = new Child() { ParentId = parent.Id, Name = $"my name child - {index}" };
+                            children.Add(child);
+                            index++;
+                        }
+
+                        var childMapper = new ChildToDataSetMapper();
+                        DataTable dataTableChildren = childMapper.GetDataSetFromDtos(children);
+
+                        var sqlParameter = new SqlParameter("@batch", SqlDbType.Structured);
+                        sqlParameter.Value = dataTableChildren;
+                        sqlParameter.TypeName = "dbo.udt_child";
+
+                        msg = $"start Inserting Child records with ParentId as a foreign key. - {DateTime.Now.ToString()}";
+                        Log.Information(msg);
+
+                        db.Database.ExecuteSqlRaw("exec dbo.usp_load_child @batch", sqlParameter);
+
+                        msg = $"end Inserting Child records with ParentId as a foreign key. - {DateTime.Now.ToString()}";
+                        Log.Information(msg);
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        Log.Error(ex.ToString());
+                    }
+                }
+            }
+        }
+        //bulk insert Parent Child records with transaction scope//
     }
 }
