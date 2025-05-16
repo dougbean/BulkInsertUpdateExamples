@@ -46,7 +46,7 @@ namespace BulkInsertUpdateExamples
         /// </summary>
         private static void BulkInsertProductRecords()
         {
-            int numberOfRecords = 10000;
+            int numberOfRecords = 1000000;
             var products = new List<Product>();
             for (int i = 1; i < numberOfRecords; i++)
             {
