@@ -9,8 +9,10 @@ namespace BulkInsertUpdateExamples.Data;
 
 public partial class SandboxDbContext : DbContext
 {
+    private string connectionString = string.Empty;
     public SandboxDbContext()
     {
+        connectionString = ConfigurationManager.ConnectionStrings["database"].ConnectionString;
     }
 
     public SandboxDbContext(DbContextOptions<SandboxDbContext> options)
@@ -27,9 +29,8 @@ public partial class SandboxDbContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
-        {
-            //hide the connection string before git commit
-            optionsBuilder.UseSqlServer("");
+        {   
+            optionsBuilder.UseSqlServer(connectionString);
         }
     }
 

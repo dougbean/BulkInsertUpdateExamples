@@ -1,6 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-//Console.WriteLine("Hello, World!");
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,26 +7,24 @@ using System.Linq;
 using Serilog;
 using System.Text.Json;
 using System.Configuration;
-using Microsoft.IdentityModel.Protocols;
-using Microsoft.Extensions.Configuration;
 using BulkInsertExampleEF;
 using BulkInsertUpdateExamples.Data;
 using BulkInsertUpdateExamples.Models;
-using System.Runtime.InteropServices;
 using BulkInsertUpdateExamples.Mappers;
-using System.Collections;
 
 namespace BulkInsertUpdateExamples
 {
     internal class Program
-    {
+    {  
         static void Main(string[] args)
         {
-            ConfigureSerilog();            
-
+            ConfigureSerilog();
+            string connectionString = ConfigurationManager.ConnectionStrings["database"].ConnectionString;
+           
             //BulkInsertProductRecords();
             //BulkUpdateProducts();
-            BulkInsertParentChildTables();
+            //BulkInsertParentChildTables();
+            //BulkInsertUseSqlBulkCopy(connectionString);
 
             Console.WriteLine("press any key..");
             Console.ReadKey();
@@ -44,15 +40,15 @@ namespace BulkInsertUpdateExamples
 
         //bulk product insert//
         /// <summary>
-        /// Eleven seconds to  insert one million records
+        /// Eleven seconds to insert one million records
         /// 2025-05-16 10:32:02.638 -05:00 [INF] start Inserting 1000000 records - 5/16/2025 10:32:02 AM
         //  2025-05-16 10:32:13.303 -05:00 [INF] end Inserting 1000000 records - 5/16/2025 10:32:13 AM
         /// </summary>
         private static void BulkInsertProductRecords()
         {
-            int numberOfRecords = 1000000;//one million records
+            int numberOfRecords = 10000;
             var products = new List<Product>();
-            for (int i = 0; i < numberOfRecords; i++)
+            for (int i = 1; i < numberOfRecords; i++)
             {
                 var product = new Product() { Name = $"my name{i}", Price = i };
                 products.Add(product);
@@ -200,5 +196,47 @@ namespace BulkInsertUpdateExamples
             }
         }
         //bulk insert Parent Child records with transaction scope//
+
+        //use SqlBulkCopy for bulk insert//
+        /// <summary>
+        /// Two seconds to insert one million records, using SqlBulkCopy       
+        /// 2025-05-16 14:51:02.409 -05:00 [INF] start sqlBulkCopy - 1000000 Product records - 5/16/2025 2:51:02 PM
+        /// 2025-05-16 14:51:04.817 -05:00 [INF] end sqlBulkCopy - 1000000 Product records - 5/16/2025 2:51:04 PM
+        /// </summary>
+        private static void BulkInsertUseSqlBulkCopy(string connectionString)
+        {
+            int numberOfRecords = 10000;
+            var products = new List<Product>();
+            for (int i = 1; i < numberOfRecords; i++)
+            {
+                var product = new Product() { Name = $"my name{i}", Price = i };
+                products.Add(product);
+            }
+
+            var mapper = new ProductToDataSetMapper();
+            DataTable dataTable = mapper.GetDataSetFroDtos(products);
+           
+            using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connectionString))
+            {
+                string msg = $"start sqlBulkCopy - {numberOfRecords} Product records - {DateTime.Now.ToString()}";
+                Log.Information(msg);
+
+                // The table I'm loading the data to  
+                bulkCopy.DestinationTableName = "Product";
+
+                // How many records to send to the database in one go (all of them)  
+                bulkCopy.BatchSize = dataTable.Rows.Count;
+
+                // Load the data to the database  
+                bulkCopy.WriteToServer(dataTable);               
+
+                // Close up            
+                bulkCopy.Close();
+
+                msg = $"end sqlBulkCopy - {numberOfRecords} Product records - {DateTime.Now.ToString()}";
+                Log.Information(msg);
+            }
+        }
+        //use SqlBulkCopy for bulk insert//
     }
 }
