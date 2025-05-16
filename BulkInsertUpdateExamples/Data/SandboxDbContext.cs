@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using BulkInsertUpdateExamples.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Protocols;
+using System.Configuration;
 
 namespace BulkInsertUpdateExamples.Data;
 
@@ -21,7 +23,7 @@ public partial class SandboxDbContext : DbContext
     public virtual DbSet<Parent> Parents { get; set; }
 
     public virtual DbSet<Product> Products { get; set; }
-       
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
