@@ -6,6 +6,8 @@ One can use SqlBulkCopy for bulk inserts, but this old school technique is more 
 
 I adapted this old school technique to use Entity Framework.
 
+The RunAll.sql script in the scripts folder will create some sample tables and their corresponding stored procedurs and user defined tables.
+
 I've written T4 templates to generate the stored procedures, the user defined tables and mapper classes, but they need some work before I would check them in.
 
 I'm using database first rather that model first for Entity Framework.
